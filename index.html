@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>IRVE Dashboard — Analyse des Bornes de Recharge VE</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <!-- Leaflet MarkerCluster CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+  <!-- ===== HEADER ===== -->
+  <header class="header">
+    <div class="header-left">
+      <div class="logo">
+        <i class="fa-solid fa-charging-station"></i>
+        <span>IRVE<strong>Analytica</strong></span>
+      </div>
+      <div class="header-subtitle">Analyse territoriale des infrastructures de recharge VE — Île-de-France</div>
+    </div>
+    <div class="header-right">
+      <div class="header-badge">
+        <i class="fa-solid fa-circle-dot pulse-green"></i>
+        Données temps réel
+      </div>
+      <button class="btn-icon" id="btn-help" title="À propos des sources">
+        <i class="fa-solid fa-circle-info"></i>
+      </button>
+      <button class="btn-icon" id="btn-export" title="Exporter les données">
+        <i class="fa-solid fa-download"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- ===== MAIN LAYOUT ===== -->
+  <div class="app-layout">
+
+    <!-- ===== SIDEBAR ===== -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-toggle" id="sidebar-toggle">
+        <i class="fa-solid fa-chevron-left" id="toggle-icon"></i>
+      </div>
+
+      <!-- KPI CARDS -->
+      <div class="section-title"><i class="fa-solid fa-chart-bar"></i> Indicateurs clés</div>
+      <div class="kpi-grid">
+        <div class="kpi-card" data-tooltip="Bornes IRVE recensées en IdF">
+          <div class="kpi-icon blue"><i class="fa-solid fa-plug-circle-bolt"></i></div>
+          <div class="kpi-body">
+            <div class="kpi-value" id="kpi-bornes">—</div>
+            <div class="kpi-label">Bornes actives</div>
+          </div>
+        </div>
+        <div class="kpi-card" data-tooltip="Puissance totale installée (kW)">
+          <div class="kpi-icon green"><i class="fa-solid fa-bolt"></i></div>
+          <div class="kpi-body">
+            <div class="kpi-value" id="kpi-puissance">—</div>
+            <div class="kpi-label">kW installés</div>
+          </div>
+        </div>
+        <div class="kpi-card" data-tooltip="Véhicules électriques immatriculés">
+          <div class="kpi-icon orange"><i class="fa-solid fa-car"></i></div>
+          <div class="kpi-body">
+            <div class="kpi-value" id="kpi-ve">—</div>
+            <div class="kpi-label">VE immatriculés</div>
+          </div>
+        </div>
+        <div class="kpi-card" data-tooltip="Ratio VE par borne">
+          <div class="kpi-icon purple"><i class="fa-solid fa-scale-balanced"></i></div>
+          <div class="kpi-body">
+            <div class="kpi-value" id="kpi-ratio">—</div>
+            <div class="kpi-label">VE / borne</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- COUCHES DE DONNÉES -->
+      <div class="section-title"><i class="fa-solid fa-layer-group"></i> Couches de données</div>
+      <div class="layers-panel">
+
+        <div class="layer-group">
+          <div class="layer-group-title">Offre de recharge</div>
+          <label class="layer-toggle active" id="layer-irve">
+            <input type="checkbox" checked id="cb-irve"/>
+            <span class="toggle-dot blue"></span>
+            <span class="layer-name">Bornes IRVE</span>
+            <span class="layer-source">data.gouv.fr</span>
+          </label>
+          <label class="layer-toggle" id="layer-fast">
+            <input type="checkbox" id="cb-fast"/>
+            <span class="toggle-dot yellow"></span>
+            <span class="layer-name">Recharge rapide (&gt;50kW)</span>
+            <span class="layer-source">IRVE filtré</span>
+          </label>
+        </div>
+
+        <div class="layer-group">
+          <div class="layer-group-title">Demande potentielle</div>
+          <label class="layer-toggle" id="layer-iris">
+            <input type="checkbox" id="cb-iris"/>
+            <span class="toggle-dot green"></span>
+            <span class="layer-name">IRIS — Revenu médian</span>
+            <span class="layer-source">INSEE</span>
+          </label>
+          <label class="layer-toggle" id="layer-densite">
+            <input type="checkbox" id="cb-densite"/>
+            <span class="toggle-dot teal"></span>
+            <span class="layer-name">Densité de ménages</span>
+            <span class="layer-source">INSEE IRIS</span>
+          </label>
+        </div>
+
+        <div class="layer-group">
+          <div class="layer-group-title">Attracteurs de mobilité</div>
+          <label class="layer-toggle" id="layer-gares">
+            <input type="checkbox" id="cb-gares"/>
+            <span class="toggle-dot red"></span>
+            <span class="layer-name">Gares &amp; pôles multimodaux</span>
+            <span class="layer-source">GTFS Île-de-France Mobilités</span>
+          </label>
+          <label class="layer-toggle" id="layer-parking">
+            <input type="checkbox" id="cb-parking"/>
+            <span class="toggle-dot orange"></span>
+            <span class="layer-name">Parkings relais</span>
+            <span class="layer-source">OpenStreetMap</span>
+          </label>
+          <label class="layer-toggle" id="cb-label-commerce">
+            <input type="checkbox" id="cb-commerce"/>
+            <span class="toggle-dot pink"></span>
+            <span class="layer-name">Centres commerciaux</span>
+            <span class="layer-source">OpenStreetMap</span>
+          </label>
+        </div>
+
+        <div class="layer-group">
+          <div class="layer-group-title">Zones blanches</div>
+          <label class="layer-toggle" id="layer-zones">
+            <input type="checkbox" id="cb-zones"/>
+            <span class="toggle-dot gray"></span>
+            <span class="layer-name">Zones sous-équipées</span>
+            <span class="layer-source">Analyse territoriale</span>
+          </label>
+        </div>
+
+      </div>
+
+      <!-- FILTRES -->
+      <div class="section-title"><i class="fa-solid fa-sliders"></i> Filtres</div>
+      <div class="filters-panel">
+
+        <div class="filter-item">
+          <label>Puissance minimale</label>
+          <div class="range-row">
+            <input type="range" id="filter-puissance" min="3" max="350" value="3" step="1"/>
+            <span id="filter-puissance-val">3 kW</span>
+          </div>
+        </div>
+
+        <div class="filter-item">
+          <label>Type de prise</label>
+          <div class="checkbox-group">
+            <label><input type="checkbox" checked class="cb-prise" value="Type2"/> Type 2</label>
+            <label><input type="checkbox" checked class="cb-prise" value="CCS"/> CCS Combo</label>
+            <label><input type="checkbox" checked class="cb-prise" value="CHAdeMO"/> CHAdeMO</label>
+            <label><input type="checkbox" checked class="cb-prise" value="T3"/> T3 (Domestic)</label>
+          </div>
+        </div>
+
+        <div class="filter-item">
+          <label>Territoire</label>
+          <select id="filter-territoire">
+            <option value="all">Île-de-France entière</option>
+            <option value="75">Paris (75)</option>
+            <option value="77">Seine-et-Marne (77)</option>
+            <option value="78">Yvelines (78)</option>
+            <option value="91">Essonne (91)</option>
+            <option value="92">Hauts-de-Seine (92)</option>
+            <option value="93">Seine-Saint-Denis (93)</option>
+            <option value="94">Val-de-Marne (94)</option>
+            <option value="95">Val-d'Oise (95)</option>
+          </select>
+        </div>
+
+        <div class="filter-item">
+          <label>Opérateur réseau</label>
+          <select id="filter-operateur">
+            <option value="all">Tous les opérateurs</option>
+            <option value="enedis">Enedis</option>
+            <option value="izivia">IZIVIA</option>
+            <option value="belib">Belib' (Paris)</option>
+            <option value="station-e">Station-E</option>
+            <option value="ionity">IONITY</option>
+            <option value="tesla">Tesla Supercharger</option>
+          </select>
+        </div>
+
+        <button class="btn-apply" id="btn-apply-filters">
+          <i class="fa-solid fa-filter"></i> Appliquer les filtres
+        </button>
+        <button class="btn-reset" id="btn-reset-filters">
+          <i class="fa-solid fa-rotate-left"></i> Réinitialiser
+        </button>
+      </div>
+
+      <!-- SOURCES -->
+      <div class="section-title"><i class="fa-solid fa-database"></i> Sources de données</div>
+      <div class="sources-panel">
+        <a class="source-link" href="https://www.data.gouv.fr/fr/datasets/fichier-consolide-des-bornes-de-recharge-pour-vehicules-electriques/" target="_blank">
+          <i class="fa-solid fa-plug"></i> IRVE — data.gouv.fr
+        </a>
+        <a class="source-link" href="https://www.insee.fr/fr/statistiques/zones/2017499" target="_blank">
+          <i class="fa-solid fa-users"></i> IRIS — INSEE
+        </a>
+        <a class="source-link" href="https://www.statistiques.developpement-durable.gouv.fr/donnees-sur-les-immatriculations-de-vehicules-electriques" target="_blank">
+          <i class="fa-solid fa-car-side"></i> Immatriculations VE — SDES
+        </a>
+        <a class="source-link" href="https://geoservices.ign.fr/bdtopo" target="_blank">
+          <i class="fa-solid fa-map"></i> BD TOPO — IGN
+        </a>
+        <a class="source-link" href="https://data.iledefrance-mobilites.fr/explore/dataset/emplacement-des-gares-idf/" target="_blank">
+          <i class="fa-solid fa-train"></i> Gares — IdF Mobilités
+        </a>
+        <a class="source-link" href="https://overpass-turbo.eu/" target="_blank">
+          <i class="fa-brands fa-openstreetmap"></i> OpenStreetMap — Overpass
+        </a>
+      </div>
+
+    </aside>
+
+    <!-- ===== MAP CONTAINER ===== -->
+    <main class="map-wrapper">
+
+      <!-- Map toolbar -->
+      <div class="map-toolbar">
+        <button class="toolbar-btn active" id="tool-explore" title="Explorer">
+          <i class="fa-solid fa-magnifying-glass-location"></i>
+        </button>
+        <button class="toolbar-btn" id="tool-isochrone" title="Isochrone d'accessibilité">
+          <i class="fa-solid fa-circle-dot"></i>
+        </button>
+        <button class="toolbar-btn" id="tool-heatmap" title="Carte de chaleur demande">
+          <i class="fa-solid fa-fire"></i>
+        </button>
+        <button class="toolbar-btn" id="tool-compare" title="Comparer deux zones">
+          <i class="fa-solid fa-code-compare"></i>
+        </button>
+        <hr class="toolbar-sep"/>
+        <button class="toolbar-btn" id="tool-home" title="Recentrer sur l'Île-de-France">
+          <i class="fa-solid fa-house"></i>
+        </button>
+      </div>
+
+      <!-- The Leaflet map -->
+      <div id="map"></div>
+
+      <!-- Map overlays -->
+      <div class="map-legend" id="map-legend">
+        <div class="legend-title">Légende</div>
+        <div class="legend-item"><span class="legend-dot blue"></span> Borne IRVE (standard)</div>
+        <div class="legend-item"><span class="legend-dot yellow"></span> Recharge rapide &gt;50kW</div>
+        <div class="legend-item"><span class="legend-dot red"></span> Gare / pôle multimodal</div>
+        <div class="legend-item"><span class="legend-dot orange"></span> Parking relais</div>
+        <div class="legend-item"><span class="legend-dot pink"></span> Centre commercial</div>
+        <div class="legend-item"><span class="legend-dot gray-hatch"></span> Zone sous-équipée</div>
+        <div class="legend-sep"></div>
+        <div class="legend-subtitle">Revenu médian IRIS</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#ef4444"></span> Très modeste (&lt;18 k€)</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#f97316"></span> Modeste (18–23 k€)</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#eab308"></span> Intermédiaire (23–28 k€)</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#22c55e"></span> Aisé (28–35 k€)</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#3b82f6"></span> Très aisé (&gt;35 k€)</div>
+        <div class="legend-sep"></div>
+        <div class="legend-subtitle">Densité de ménages</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#bfdbfe"></span> Rural (&lt;500/km²)</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#60a5fa"></span> Urbain (2–6 k/km²)</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#1e3a8a"></span> Très dense (&gt;12 k/km²)</div>
+      </div>
+
+      <div class="map-scale" id="map-coords">
+        <i class="fa-solid fa-crosshairs"></i>
+        <span id="coords-text">Survolez la carte</span>
+      </div>
+    </main>
+
+    <!-- ===== RIGHT PANEL — Analysis ===== -->
+    <aside class="right-panel" id="right-panel">
+      <div class="right-panel-header">
+        <span><i class="fa-solid fa-microscope"></i> Analyse territoriale</span>
+        <button class="btn-icon small" id="close-right-panel"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <!-- Tab navigation -->
+      <div class="tab-nav">
+        <button class="tab-btn active" data-tab="deficit">Déficit</button>
+        <button class="tab-btn" data-tab="ranking">Classement</button>
+      </div>
+
+      <!-- Tab: Déficit territorial -->
+      <div class="tab-content active" id="tab-deficit">
+        <div class="analysis-block">
+          <div class="analysis-title">Score de déficit par département</div>
+          <div class="bar-chart" id="chart-deficit">
+            <!-- Rempli dynamiquement par computeDeficitScores() + renderDeficitChart() -->
+          </div>
+          <p class="analysis-note">Score calculé selon : densité VE / borne, proximité attracteurs de mobilité, revenu médian IRIS.</p>
+        </div>
+
+        <div class="analysis-block">
+          <div class="analysis-title">Recommandations prioritaires</div>
+          <div class="reco-list">
+            <div class="reco-item high">
+              <div class="reco-priority">Priorité haute</div>
+              <div class="reco-text">Déployer ≥ 200 bornes en zones résidentielles denses à Paris 13e, 19e, 20e</div>
+            </div>
+            <div class="reco-item high">
+              <div class="reco-priority">Priorité haute</div>
+              <div class="reco-text">Couvrir les pôles d'échange en Seine-Saint-Denis (RER B, D)</div>
+            </div>
+            <div class="reco-item medium">
+              <div class="reco-priority">Priorité moyenne</div>
+              <div class="reco-text">Renforcer les hubs en Val-de-Marne (centres commerciaux sud)</div>
+            </div>
+            <div class="reco-item low">
+              <div class="reco-priority">Veille</div>
+              <div class="reco-text">Surveiller croissance des immatriculations en grande couronne</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Classement communes -->
+      <div class="tab-content" id="tab-ranking">
+        <div class="analysis-block">
+          <div class="analysis-title">Top 10 communes — Potentiel non couvert</div>
+          <div class="ranking-list" id="ranking-list">
+            <!-- Filled by JS -->
+          </div>
+        </div>
+      </div>
+
+    </aside>
+
+  </div>
+
+  <!-- ===== INFO MODAL ===== -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <span><i class="fa-solid fa-circle-info"></i> À propos — Sources de données</span>
+        <button class="btn-icon" id="modal-close"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <h3>Bornes de recharge</h3>
+        <p><strong>IRVE consolidé — data.gouv.fr</strong> : base nationale géolocalisée avec puissance, type de prise, opérateur et statut. Point de départ obligatoire.</p>
+
+        <h3>Demande potentielle</h3>
+        <p><strong>IRIS — INSEE</strong> : population, revenus médians, part de résidences avec voiture, densité de ménages. Proxy le plus fin pour estimer la demande.</p>
+        <p><strong>Immatriculations VE — SDES</strong> : données par département, mise à jour mensuelle.</p>
+
+        <h3>Usage du sol</h3>
+        <p><strong>BD TOPO — IGN</strong> : bâtiments, routes, réseau viaire. Indispensable pour l'accessibilité physique.</p>
+        <p><strong>OCS GE — Île-de-France</strong> : occupation du sol à grande échelle pour le zonage fonctionnel.</p>
+
+        <h3>Attracteurs de mobilité</h3>
+        <p><strong>OpenStreetMap (Overpass Turbo)</strong> : centres commerciaux, parkings, zones d'activité, gares.</p>
+        <p><strong>GTFS — Île-de-France Mobilités</strong> : réseau TC, nœuds multimodaux.</p>
+
+        <h3>Accessibilité routière</h3>
+        <p><strong>BD CARTO / OSM</strong> : réseau viaire. <strong>API OpenRouteService</strong> : calcul d'isochrones.</p>
+
+        <h3>Références territoriales</h3>
+        <p><strong>IRIS, communes, EPT Grand Paris</strong> — data.gouv.fr et Géoportail de l'Urbanisme.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- MarkerCluster JS -->
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+  <!-- Leaflet Heat -->
+  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+  <!-- App JS -->
+  <script src="app.js"></script>
+</body>
+</html>
